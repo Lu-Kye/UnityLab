@@ -4,7 +4,7 @@
 // Original Source: http://www.iquilezles.org/apps/shadertoy/
 // Thanks to Inigo Quilez
 
-Shader "ShaderToy/704"
+Shader "ShaderToy/SevenOFour"
 {    
     Properties
     {
