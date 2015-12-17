@@ -24,7 +24,7 @@
 				float4 vertex : POSITION;
 				float2 texcoord : TEXCOORD0;
 				float4 color : COLOR;
-				float3 normal;
+				float3 normal : NORMAL;
 			};
 
 			struct v2f
