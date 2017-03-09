@@ -48,16 +48,16 @@ SubShader
    // just make a copy of incoming vertex data but scaled according to normal direction
     v2f o;
     o.pos=mul(UNITY_MATRIX_MVP,v.vertex);
-    float3 dir=normalize(v.vertex.xyz);
+    float3 dir=normalize(v.vertex.xyz); 
     float3 dir2=v.normal;
-    float D=dot(dir,dir2);
+    float D=dot(dir,dir2); 
     D=(D/_Factor+1)/(1+1/_Factor);
     dir=lerp(dir2,dir,D);
     dir= mul ((float3x3)UNITY_MATRIX_IT_MV, dir);
     float2 offset = TransformViewToProjection(dir.xy);
     offset=normalize(offset);
-    o.pos.xy += offset * o.pos.z *_OutlineWidth;//乘以o.pos.z导致物体里摄像机越远，描边越粗，不想要可以
-                                                                 //将该                      值                 去掉
+    o.pos.xy += offset * o.pos.z *_OutlineWidth;                   //乘以o.pos.z导致物体里摄像机越远，描边越粗，不想要可以将该值去掉
+                                                                 
     o.color = _OutlineColor;
     return o;
   }
