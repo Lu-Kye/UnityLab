@@ -4,7 +4,7 @@
 // - no AlphaTest
 // - no ColorMask
 
-Shader "Test/Mobile/Particles/Additive" {
+Shader "LkTest/Mobile/Particles/Additive" {
 Properties {
 	_MainTex ("Particle Texture", 2D) = "white" {}
 }

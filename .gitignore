@@ -1,6 +1,8 @@
 Library/
 Temp/
 
+/.vscode/
+
 *.userprefs
 *.sln
 *.userprefs
