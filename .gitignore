@@ -1,8 +1,7 @@
 Library/
 Temp/
+
 *.userprefs
 *.sln
 *.userprefs
 *.csproj
-Assets/Standard Assets
-Standard Assets.meta
