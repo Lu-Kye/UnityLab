@@ -1,4 +1,6 @@
-﻿Shader "Unlit/SurfaceToVF"
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+Shader "Unlit/SurfaceToVF"
 {
 	Properties
 	{
@@ -46,7 +48,7 @@
 			vertex_data vertTest (appdata_test v)
 			{
 				vertex_data o;
-				o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
+				o.vertex = UnityObjectToClipPos(v.vertex);
 				
 				float3 viewDir = normalize(ObjSpaceViewDir(v.vertex));
 				float dotProduct = 1 - dot(v.normal,viewDir) ;

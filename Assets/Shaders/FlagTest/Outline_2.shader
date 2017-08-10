@@ -1,4 +1,6 @@
-﻿Shader "ZFLAG/Outline_2" {
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+Shader "ZFLAG/Outline_2" {
  Properties {
   _OutlineColor ("Outline Color", Color) = (0,0,0,1) 
   _OutlineWidth ("Outline width",Range(0.001, 0.1)) = 0.007
@@ -34,7 +36,7 @@ SubShader
   {
     v2f o;
     v.vertex.xyz *= 1 + _OutlineWidth;
-    o.pos=mul(UNITY_MATRIX_MVP,v.vertex);
+    o.pos=UnityObjectToClipPos(v.vertex);
 
     o.color = _OutlineColor;
     return o;
@@ -61,7 +63,7 @@ SubShader
     float _Amount;
              vertOut vert(appdata_base v) {
                  vertOut o;
-                 o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
+                 o.pos = UnityObjectToClipPos (v.vertex);
                  o.tex = v.texcoord;
                  return o;
              }

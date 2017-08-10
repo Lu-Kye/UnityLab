@@ -1,4 +1,6 @@
-﻿Shader "Custom/Mobius" {
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+Shader "Custom/Mobius" {
 	Properties {
 		_MainTex ("Base (RGB)", 2D) = "white" {}
 	}
@@ -27,7 +29,7 @@
  
     vertOut vert(appdata_base v) {    
         vertOut o;    
-        o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+        o.pos = UnityObjectToClipPos(v.vertex);
         o.srcPos = ComputeScreenPos(o.pos);   
         return o;    
     }

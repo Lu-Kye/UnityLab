@@ -1,4 +1,6 @@
-﻿Shader "ZFLAG/test_1"
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+Shader "ZFLAG/test_1"
 {
 	Properties
 	{
@@ -40,7 +42,7 @@
 				
 				v.vertex.xyz += normalize(v.normal);
 				
-				o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
+				o.vertex = UnityObjectToClipPos(v.vertex);
 				
 				o.texcoord = v.texcoord;
 				o.color = v.color;

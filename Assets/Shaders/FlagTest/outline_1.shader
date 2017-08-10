@@ -1,4 +1,6 @@
-﻿Shader "ZFLAG/Outline_1" {
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+Shader "ZFLAG/Outline_1" {
  Properties {
   _Color ("Main Color", Color) = (1,1,1,1)
   _OutlineColor ("Outline Color", Color) = (0,0,0,1) //改变这个能改变轮廓边的颜色
@@ -47,7 +49,7 @@ SubShader
   v2f vert(appdata v) {
    // just make a copy of incoming vertex data but scaled according to normal direction
     v2f o;
-    o.pos=mul(UNITY_MATRIX_MVP,v.vertex);
+    o.pos=UnityObjectToClipPos(v.vertex);
     float3 dir=normalize(v.vertex.xyz); 
     float3 dir2=v.normal;
     float D=dot(dir,dir2); 
@@ -82,7 +84,7 @@ SubShader
     float _Amount;
              vertOut vert(appdata_base v) {
                  vertOut o;
-                 o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
+                 o.pos = UnityObjectToClipPos (v.vertex);
                  o.tex = v.texcoord;
                  return o;
              }

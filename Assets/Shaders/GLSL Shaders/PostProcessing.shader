@@ -1,3 +1,5 @@
+// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
 // Converted by iKriz <shaders@ikriz.nl>
 // http://www.ikriz.nl/2011/06/11/unity-glsl-shaders/
 //
@@ -90,7 +92,7 @@ Shader "ShaderToy/PostProcessing"
 				v2f vert (appdata_base v)
 				{
 				    v2f o;
-				    o.pos = mul (UNITY_MATRIX_MVP, v.vertex);
+				    o.pos = UnityObjectToClipPos (v.vertex);
 				    o.uv = TRANSFORM_TEX (v.texcoord, _MainTex);
 				    return o;
 				}
