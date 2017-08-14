@@ -1,4 +1,4 @@
-Shader "KGame/PBR AlphaTest" {
+Shader "KGame/PBR Rain AlphaTest" {
 
 Properties {
     _BumpMap("BumpMap", 2D) = "white" {}
@@ -6,6 +6,8 @@ Properties {
     _MainTex("MainTex", 2D) = "white" {}
     _PBRTexture("PBRTexture", 2D) = "white" {}
     _SmoothnessScale("SmoothnessScale", Range(0.000000, 1.000000)) = 1.000000
+    _WetCoeff("WetCoeff", Range(0.000000, 1.000000)) = 1.000000
+    _WetScale("WetScale", Range(0.000000, 0.199951)) = 0.099976
 }
 
 SubShader {
@@ -164,6 +166,8 @@ half _Cutoff;
 sampler2D _MainTex;
 sampler2D _PBRTexture;
 half _SmoothnessScale;
+half _WetCoeff;
+half _WetScale;
 
 void AlphaTest(half transparency) {
     clip (transparency - _Cutoff);
@@ -242,6 +246,17 @@ void UnpackProjectKSmoothnessTextureWithOcclusion(float2 uv, out half metallic, 
     occlusion = value.z;
 }
 
+void WetMaterial(half metallic, float2 uv, inout half3 albedo, inout half perceptualSmoothness) {
+    //half rain_mask = tex2D(WetMask, uv);
+    //half rain_mask = occlusion;
+    half rain_mask = _WetCoeff;
+    perceptualSmoothness += _WetScale * rain_mask;
+    perceptualSmoothness = min(1.0f, perceptualSmoothness);
+    half porosity = saturate(((1 - perceptualSmoothness) - 0.5) * 10.f );
+    float factor = lerp(0.1, 1, metallic * porosity);
+    albedo *= lerp(1, (factor * 5), rain_mask);
+}
+
 void WorldTangentNormal(half3 localNormal, float4 tspace0, float4 tspace1, float4 tspace2, out half3 worldNormal) {
     worldNormal.x = dot(half3(tspace0.xyz), localNormal);
     worldNormal.y = dot(half3(tspace1.xyz), localNormal);
@@ -273,16 +288,18 @@ void frag(v2f IN, out half4 color: SV_Target0) {
     half4 albedo_transparency;
     albedo_transparency = tex2D(_MainTex, uv);
 
-    half transparency;
-    transparency = albedo_transparency.w;
-
     half3 albedo;
     UnpackAlbedo(albedo_transparency, albedo);
+
+    half transparency;
+    transparency = albedo_transparency.w;
 
     half metallic;
     half occlusion;
     half perceptualSmoothness;
     UnpackProjectKSmoothnessTextureWithOcclusion(uv, metallic, occlusion, perceptualSmoothness);
+
+    WetMaterial(metallic, uv, albedo, perceptualSmoothness);
 
     half ndotL;
     NdotL(lightDir, worldNormal, ndotL);

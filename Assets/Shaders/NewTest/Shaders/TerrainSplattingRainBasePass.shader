@@ -1,16 +1,15 @@
-Shader "KGame/PBR AlphaTest" {
+Shader "KGame/Terrain Splatting Rain Base Pass" {
 
 Properties {
-    _BumpMap("BumpMap", 2D) = "white" {}
-    _Cutoff("Cutoff", Range(0.000000, 1.000000)) = 1.000000
     _MainTex("MainTex", 2D) = "white" {}
-    _PBRTexture("PBRTexture", 2D) = "white" {}
-    _SmoothnessScale("SmoothnessScale", Range(0.000000, 1.000000)) = 1.000000
+    _MetallicTex("MetallicTex", 2D) = "white" {}
+    _WetCoeff("WetCoeff", Range(0.000000, 1.000000)) = 1.000000
+    _WetScale("WetScale", Range(0.000000, 0.199951)) = 0.099976
 }
 
 SubShader {
-Tags { "RenderType" = "Opaque" }
-LOD 100
+Tags { "Queue" = "Geometry-100" "RenderType" = "Opaque" }
+LOD 200
 
 Pass {
 Tags { "LightMode" = "ForwardBase" }
@@ -67,34 +66,21 @@ half3 RGBtoHSV(in half3 RGB) {
 struct v2f {
     float4 pos : SV_Position;
     float4 lightmapUV : TEXCOORD0;
-    float4 tspace0 : TEXCOORD1;
-    float4 tspace1 : TEXCOORD2;
-    float4 tspace2 : TEXCOORD3;
-    float2 uv : TEXCOORD4;
-    UNITY_FOG_COORDS(5)
-    UNITY_SHADOW_COORDS(6)
+    float2 uv : TEXCOORD1;
+    half3 worldNormal : TEXCOORD2;
+    float3 worldPos : TEXCOORD3;
+    UNITY_FOG_COORDS(4)
+    UNITY_SHADOW_COORDS(5)
 #if !defined(LIGHTMAP_ON) && defined(UNITY_SHOULD_SAMPLE_SH)
-    half3 sh : TEXCOORD7;
+    half3 sh : TEXCOORD6;
 #endif
 };
-
-void WorldBitangent(float4 tangent, half3 worldNormal, half3 worldTangent, out half3 worldBitangent) {
-    half tangentSign = tangent.w * unity_WorldTransformParams.w;
-    worldBitangent = cross(worldNormal, worldTangent) * tangentSign;
-}
-
-void WorldTangentSpaceWithPos(half3 worldBitangent, half3 worldNormal, float3 worldPos, half3 worldTangent, out float4 tspace0, out float4 tspace1, out float4 tspace2) {
-    tspace0 = float4(worldTangent.x, worldBitangent.x, worldNormal.x, worldPos.x);
-    tspace1 = float4(worldTangent.y, worldBitangent.y, worldNormal.y, worldPos.y);
-    tspace2 = float4(worldTangent.z, worldBitangent.z, worldNormal.z, worldPos.z);
-}
 
 v2f vert (appdata_full v) {
     v2f o;
     UNITY_INITIALIZE_OUTPUT(v2f, o);
 
     float3 normal = v.normal;
-    float4 tangent = v.tangent;
     float2 uv = v.texcoord;
     float2 uv1 = v.texcoord1;
     float2 uv2 = v.texcoord2;
@@ -106,19 +92,8 @@ v2f vert (appdata_full v) {
     float3 worldPos;
     worldPos = mul(unity_ObjectToWorld, vertex).xyz;
 
-    half3 worldTangent;
-    worldTangent = UnityObjectToWorldDir(tangent.xyz);
-
     half3 worldNormal;
     worldNormal = UnityObjectToWorldNormal(normal);
-
-    half3 worldBitangent;
-    WorldBitangent(tangent, worldNormal, worldTangent, worldBitangent);
-
-    float4 tspace0;
-    float4 tspace1;
-    float4 tspace2;
-    WorldTangentSpaceWithPos(worldBitangent, worldNormal, worldPos, worldTangent, tspace0, tspace1, tspace2);
 
     float4 lightmapUV;
 #ifdef DYNAMICLIGHTMAP_ON
@@ -150,24 +125,18 @@ v2f vert (appdata_full v) {
 
     o.pos = clipPos;
     o.lightmapUV = lightmapUV;
-    o.tspace0 = tspace0;
-    o.tspace1 = tspace1;
-    o.tspace2 = tspace2;
     o.uv = uv;
+    o.worldNormal = worldNormal;
+    o.worldPos = worldPos;
     UNITY_TRANSFER_SHADOW(o, v.texcoord1.xy);
     UNITY_TRANSFER_FOG(o, o.pos);
     return o;
 }
 
-sampler2D _BumpMap;
-half _Cutoff;
 sampler2D _MainTex;
-sampler2D _PBRTexture;
-half _SmoothnessScale;
-
-void AlphaTest(half transparency) {
-    clip (transparency - _Cutoff);
-}
+sampler2D _MetallicTex;
+half _WetCoeff;
+half _WetScale;
 
 void GammaCompression(inout half4 color) {
 #if defined(UNITY_COLORSPACE_GAMMA) && defined(STAR_GAMMA_TEXTURE)
@@ -197,10 +166,6 @@ void LdotH(half3 halfAngle, half3 lightDir, out half ldotH) {
     ldotH = saturate(dot(lightDir, halfAngle));
 }
 
-void LocalNormal(float2 uv, out half3 localNormal) {
-    localNormal = UnpackNormal(tex2D(_BumpMap, uv));
-}
-
 void NdotH(half3 halfAngle, half3 worldNormal, out half ndotH) {
     ndotH = saturate(dot(worldNormal, halfAngle));
 }
@@ -222,67 +187,55 @@ void PBRFromMetallic(half metallic, inout half3 albedo, out half3 specularity, i
     albedo = PreMultiplyAlpha(albedo, alpha, oneMinusReflectivity, /*out*/ transparency);
 }
 
+void SplattingBasicBase(float2 uv, out half3 albedo, out half metallic, out half perceptualSmoothness, out half transparency) {
+    half4 c = tex2D(_MainTex, uv);
+#if defined(UNITY_COLORSPACE_GAMMA) && defined(STAR_GAMMA_TEXTURE)
+    albedo = pow(c.xyz, 2.2);
+#else
+    albedo = c.xyz;
+#endif
+    transparency = 1.0f;
+    perceptualSmoothness = c.w;
+    metallic = tex2D(_MetallicTex, uv).x;
+}
+
 void UnityDiffuse(half nl, out half3 diffuse) {
     // diffuse = DisneyDiffuse(nv, nl, lh, perceptualRoughness) * nl;
     diffuse = nl;
 }
 
-void UnpackAlbedo(half4 albedo_transparency, out half3 albedo) {
-#if defined(UNITY_COLORSPACE_GAMMA) && defined(STAR_GAMMA_TEXTURE)
-    albedo = pow(albedo_transparency.xyz, 2.2);
-#else
-    albedo = albedo_transparency.xyz;
-#endif
-}
-
-void UnpackProjectKSmoothnessTextureWithOcclusion(float2 uv, out half metallic, out half occlusion, out half perceptualSmoothness) {
-    fixed4 value = tex2D(_PBRTexture, uv);
-    metallic = value.x;
-    perceptualSmoothness = _SmoothnessScale * value.y;
-    occlusion = value.z;
-}
-
-void WorldTangentNormal(half3 localNormal, float4 tspace0, float4 tspace1, float4 tspace2, out half3 worldNormal) {
-    worldNormal.x = dot(half3(tspace0.xyz), localNormal);
-    worldNormal.y = dot(half3(tspace1.xyz), localNormal);
-    worldNormal.z = dot(half3(tspace2.xyz), localNormal);
-    worldNormal = normalize(worldNormal);
+void WetMaterial(half metallic, float2 uv, inout half3 albedo, inout half perceptualSmoothness) {
+    //half rain_mask = tex2D(WetMask, uv);
+    //half rain_mask = occlusion;
+    half rain_mask = _WetCoeff;
+    perceptualSmoothness += _WetScale * rain_mask;
+    perceptualSmoothness = min(1.0f, perceptualSmoothness);
+    half porosity = saturate(((1 - perceptualSmoothness) - 0.5) * 10.f );
+    float factor = lerp(0.1, 1, metallic * porosity);
+    albedo *= lerp(1, (factor * 5), rain_mask);
 }
 
 void frag(v2f IN, out half4 color: SV_Target0) { 
     float4 lightmapUV = IN.lightmapUV;
-    float4 tspace0 = IN.tspace0;
-    float4 tspace1 = IN.tspace1;
-    float4 tspace2 = IN.tspace2;
     float2 uv = IN.uv;
+    half3 worldNormal = IN.worldNormal;
+    float3 worldPos = IN.worldPos;
 
-    half3 localNormal;
-    LocalNormal(uv, localNormal);
-
-    half3 worldNormal;
-    WorldTangentNormal(localNormal, tspace0, tspace1, tspace2, worldNormal);
-
-    float3 worldPos;
-    worldPos = float3(tspace0.w, tspace1.w, tspace2.w);
+    half occlusion;
+    occlusion = 1.0;
 
     half3 lightDir;
     lightDir = normalize(UnityWorldSpaceLightDir(worldPos));
 
     UNITY_LIGHT_ATTENUATION(atten, IN, worldPos);
 
-    half4 albedo_transparency;
-    albedo_transparency = tex2D(_MainTex, uv);
-
-    half transparency;
-    transparency = albedo_transparency.w;
-
     half3 albedo;
-    UnpackAlbedo(albedo_transparency, albedo);
-
     half metallic;
-    half occlusion;
     half perceptualSmoothness;
-    UnpackProjectKSmoothnessTextureWithOcclusion(uv, metallic, occlusion, perceptualSmoothness);
+    half transparency;
+    SplattingBasicBase(uv, albedo, metallic, perceptualSmoothness, transparency);
+
+    WetMaterial(metallic, uv, albedo, perceptualSmoothness);
 
     half ndotL;
     NdotL(lightDir, worldNormal, ndotL);
@@ -379,8 +332,6 @@ void frag(v2f IN, out half4 color: SV_Target0) {
     GammaCompression(color);
 
     UNITY_APPLY_FOG(IN.fogCoord, color);
-
-    AlphaTest(transparency);
 
     color.w = transparency;
 }

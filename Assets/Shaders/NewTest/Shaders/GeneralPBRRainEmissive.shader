@@ -1,11 +1,14 @@
-Shader "KGame/PBR AlphaTest" {
+Shader "KGame/PBR Rain Emissive" {
 
 Properties {
     _BumpMap("BumpMap", 2D) = "white" {}
-    _Cutoff("Cutoff", Range(0.000000, 1.000000)) = 1.000000
+    _EmissionColor("EmissionColor", Color) = (1.000000, 1.000000, 1.000000, 1.000000)
+    _EmissionMap("EmissionMap", 2D) = "white" {}
     _MainTex("MainTex", 2D) = "white" {}
     _PBRTexture("PBRTexture", 2D) = "white" {}
     _SmoothnessScale("SmoothnessScale", Range(0.000000, 1.000000)) = 1.000000
+    _WetCoeff("WetCoeff", Range(0.000000, 1.000000)) = 1.000000
+    _WetScale("WetScale", Range(0.000000, 0.199951)) = 0.099976
 }
 
 SubShader {
@@ -160,14 +163,13 @@ v2f vert (appdata_full v) {
 }
 
 sampler2D _BumpMap;
-half _Cutoff;
+fixed4 _EmissionColor;
+sampler2D _EmissionMap;
 sampler2D _MainTex;
 sampler2D _PBRTexture;
 half _SmoothnessScale;
-
-void AlphaTest(half transparency) {
-    clip (transparency - _Cutoff);
-}
+half _WetCoeff;
+half _WetScale;
 
 void GammaCompression(inout half4 color) {
 #if defined(UNITY_COLORSPACE_GAMMA) && defined(STAR_GAMMA_TEXTURE)
@@ -213,7 +215,11 @@ void NdotV(half3 worldNormal, half3 worldViewDir, out half ndotV) {
     ndotV = saturate(dot(worldNormal, worldViewDir));
 }
 
-void PBRFromMetallic(half metallic, inout half3 albedo, out half3 specularity, inout half transparency) {
+void PBRFromMetallicHSV(half metallic, inout half3 albedo, out half3 specularity, inout half transparency) {
+    half3 hsv = RGBtoHSV(albedo);
+    hsv.y *= 1.25;
+    albedo = HSVtoRGB(min(hsv, 1.0));
+
     // see linear unity_ColorSpaceDielectricSpec definition
     specularity = lerp (half3(0.04, 0.04, 0.04), albedo, metallic);
     half oneMinusReflectivity = OneMinusReflectivityFromMetallic(metallic);
@@ -240,6 +246,17 @@ void UnpackProjectKSmoothnessTextureWithOcclusion(float2 uv, out half metallic, 
     metallic = value.x;
     perceptualSmoothness = _SmoothnessScale * value.y;
     occlusion = value.z;
+}
+
+void WetMaterial(half metallic, float2 uv, inout half3 albedo, inout half perceptualSmoothness) {
+    //half rain_mask = tex2D(WetMask, uv);
+    //half rain_mask = occlusion;
+    half rain_mask = _WetCoeff;
+    perceptualSmoothness += _WetScale * rain_mask;
+    perceptualSmoothness = min(1.0f, perceptualSmoothness);
+    half porosity = saturate(((1 - perceptualSmoothness) - 0.5) * 10.f );
+    float factor = lerp(0.1, 1, metallic * porosity);
+    albedo *= lerp(1, (factor * 5), rain_mask);
 }
 
 void WorldTangentNormal(half3 localNormal, float4 tspace0, float4 tspace1, float4 tspace2, out half3 worldNormal) {
@@ -273,16 +290,24 @@ void frag(v2f IN, out half4 color: SV_Target0) {
     half4 albedo_transparency;
     albedo_transparency = tex2D(_MainTex, uv);
 
+    half3 albedo;
+    UnpackAlbedo(albedo_transparency, albedo);
+
     half transparency;
     transparency = albedo_transparency.w;
 
-    half3 albedo;
-    UnpackAlbedo(albedo_transparency, albedo);
+    half3 emission;
+    emission = tex2D(_EmissionMap, uv).xyz * _EmissionColor.xyz;
+#if defined(UNITY_COLORSPACE_GAMMA) && defined(STAR_GAMMA_TEXTURE)
+    emission = pow(emission, 2.2);
+#endif
 
     half metallic;
     half occlusion;
     half perceptualSmoothness;
     UnpackProjectKSmoothnessTextureWithOcclusion(uv, metallic, occlusion, perceptualSmoothness);
+
+    WetMaterial(metallic, uv, albedo, perceptualSmoothness);
 
     half ndotL;
     NdotL(lightDir, worldNormal, ndotL);
@@ -368,19 +393,18 @@ void frag(v2f IN, out half4 color: SV_Target0) {
     LightingStandard_GI(o, giInput, gi);
 
     half3 specularity;
-    PBRFromMetallic(metallic, albedo, specularity, transparency);
+    PBRFromMetallicHSV(metallic, albedo, specularity, transparency);
 
     half3 specular;
     ImageGGXUnity(ldotH, ndotH, ndotV, nl, roughness, specularity, specular);
 
     color.xyz = albedo * (gi.indirect.diffuse + gi.light.color * diffuse) + specular * gi.light.color;
     color.w = 1.0f;
+    color.xyz += emission;
 
     GammaCompression(color);
 
     UNITY_APPLY_FOG(IN.fogCoord, color);
-
-    AlphaTest(transparency);
 
     color.w = transparency;
 }
