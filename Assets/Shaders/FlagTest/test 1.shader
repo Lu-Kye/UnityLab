@@ -39,19 +39,17 @@ Shader "ZFLAG/test_1"
 			v2f vert (appdata v)
 			{
 				v2f o;
-				
-				v.vertex.xyz += normalize(v.normal);
-				
+								
 				o.vertex = UnityObjectToClipPos(v.vertex);
-				
 				o.texcoord = v.texcoord;
-				o.color = v.color;
+				o.color = o.vertex;
 				return o;
 			}
 			
-			fixed4 frag (v2f i) : COLOR
-			{	
-				return i.color;
+			fixed4 frag (v2f i) : SV_Target
+			{
+				//fixed4 col = fixed4(i.color.a, i.color.a, i.color.a, 1.0);
+				return fixed4(1.0, 1.0, 1.0, 1.0);
 			}
 			ENDCG
 		}
