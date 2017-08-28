@@ -1,6 +1,6 @@
 ﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
 
-Shader "ZFLAG/FirstRender"
+Shader "Unlit/FirstRender"
 {
 	Properties
 	{
@@ -17,7 +17,6 @@ Shader "ZFLAG/FirstRender"
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma enable_d3d11_debug_symbols 
 			// make fog work
 			
 			#include "UnityCG.cginc"
@@ -48,9 +47,7 @@ Shader "ZFLAG/FirstRender"
 			fixed4 frag (v2f i) : SV_Target
 			{
 				// sample the texture
-				//fixed4 col = tex2D(_MainTex, i.uv);
-				fixed c = i.vertex.w - floor(i.vertex.w);
-				fixed4 col = fixed4(c, c, c, 1.0);
+				fixed4 col = tex2D(_MainTex, i.uv);
 				// apply fog
 				return col;
 			}
